@@ -6,7 +6,11 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.chat import router as chat_router
 from app.api.jobs import router as jobs_router
+from app.api.knowledge import router as knowledge_router
 from app.core.config import get_settings
+from app.core.observability import RequestContextMiddleware, metrics_response
+from app.rag.service import GroundedChatService
+from app.rag.store import KnowledgeStore
 from app.services.concurrency import LLMConcurrencyLimiter
 from app.services.idempotency import InMemoryIdempotencyStore
 from app.services.job_service import JobService
@@ -44,6 +48,8 @@ async def lifespan(app: FastAPI):
         llm=llm,
         limiter=limiter,
     )
+    knowledge_store = KnowledgeStore.from_directory(settings.rag_knowledge_dir)
+    grounded_chat = GroundedChatService(knowledge_store, llm, min_score=settings.rag_min_score)
 
     app.state.settings = settings
     app.state.http_client = http_client
@@ -52,6 +58,8 @@ async def lifespan(app: FastAPI):
     app.state.job_store = job_store
     app.state.idempotency_store = idempotency_store
     app.state.job_service = job_service
+    app.state.knowledge_store = knowledge_store
+    app.state.grounded_chat = grounded_chat
 
     await job_service.start()
     yield
@@ -59,12 +67,19 @@ async def lifespan(app: FastAPI):
     await http_client.aclose()
 
 
-app = FastAPI(title="LLM Backend Performance Lab", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Chat Platform", version="0.2.0", lifespan=lifespan)
+app.add_middleware(RequestContextMiddleware)
 app.include_router(chat_router)
 app.include_router(jobs_router)
+app.include_router(knowledge_router)
 app.mount("/dashboard", StaticFiles(directory="web", html=True), name="dashboard")
 
 
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/metrics", include_in_schema=False)
+async def metrics():
+    return metrics_response()
