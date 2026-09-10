@@ -1,0 +1,7 @@
+scenario,users,throughput_rps,p50_ms,p95_ms,error_rate_pct
+sync-baseline,10,7.8,1260,1510,0.0
+async,10,8.0,1240,1420,0.0
+sync-baseline,50,21.5,2210,4760,1.4
+async,50,36.9,1410,2180,0.2
+sync-baseline,100,24.1,3790,8410,5.8
+async,100,58.4,1730,3120,0.9

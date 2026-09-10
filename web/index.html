@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>LLM Backend Performance Lab</title>
+  <style>
+    body{font-family:system-ui,sans-serif;background:#f5f7fb;margin:0;color:#172033}
+    main{max-width:980px;margin:40px auto;padding:0 20px}
+    .card{background:white;border:1px solid #e5e9f2;border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 8px 24px rgba(20,30,55,.06)}
+    h1{margin:0 0 8px} .muted{color:#65718a}.row{display:flex;gap:10px;flex-wrap:wrap}
+    textarea{width:100%;min-height:90px;padding:12px;border-radius:10px;border:1px solid #ccd3df;box-sizing:border-box}
+    button,select{padding:10px 14px;border-radius:10px;border:1px solid #ccd3df;background:white;cursor:pointer}
+    button.primary{background:#18233b;color:white;border-color:#18233b}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    .metric{background:#f7f9fc;border-radius:12px;padding:12px}.metric b{display:block;font-size:19px;margin-top:4px}
+    pre{white-space:pre-wrap;word-break:break-word;background:#101828;color:#e8edf7;padding:14px;border-radius:12px;min-height:100px}
+    @media(max-width:700px){.metrics{grid-template-columns:1fr 1fr}}
+  </style>
+</head>
+<body>
+<main>
+  <h1>LLM Backend Performance Lab</h1>
+  <p class="muted">같은 Job을 Polling / SSE / WebSocket으로 전달하며 상태와 latency를 관찰하는 개발용 대시보드</p>
+  <section class="card">
+    <textarea id="message">동시성 실험용 요청입니다.</textarea>
+    <div class="row" style="margin-top:10px">
+      <select id="mode"><option value="polling">Polling</option><option value="sse">SSE</option><option value="ws">WebSocket</option></select>
+      <button class="primary" onclick="runJob()">Job 실행</button>
+      <button onclick="runAsync()">Async 즉시 호출</button>
+    </div>
+  </section>
+  <section class="card metrics">
+    <div class="metric">Job ID<b id="jobId">-</b></div>
+    <div class="metric">Status<b id="status">IDLE</b></div>
+    <div class="metric">Queue Wait<b id="queue">-</b></div>
+    <div class="metric">Total<b id="total">-</b></div>
+  </section>
+  <section class="card"><pre id="log">Ready.</pre></section>
+</main>
+<script>
+const log = (x) => document.getElementById('log').textContent = typeof x === 'string' ? x : JSON.stringify(x,null,2);
+const render = (j) => {
+  document.getElementById('jobId').textContent = j.job_id || '-';
+  document.getElementById('status').textContent = j.status || '-';
+  document.getElementById('queue').textContent = j.queue_wait_ms == null ? '-' : j.queue_wait_ms.toFixed(1)+' ms';
+  document.getElementById('total').textContent = j.total_ms == null ? '-' : j.total_ms.toFixed(1)+' ms';
+  log(j);
+};
+async function createJob(){
+  const message=document.getElementById('message').value;
+  const r=await fetch('/api/v1/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message})});
+  if(!r.ok) throw new Error(await r.text()); return r.json();
+}
+async function runJob(){
+  const created=await createJob(); render(created); const mode=document.getElementById('mode').value;
+  if(mode==='polling') return poll(created.job_id);
+  if(mode==='sse') return sse(created.job_id);
+  return ws(created.job_id);
+}
+async function poll(id){
+  while(true){await new Promise(r=>setTimeout(r,300)); const r=await fetch('/api/v1/jobs/'+id); const j=await r.json(); render(j); if(['COMPLETED','FAILED'].includes(j.status)) break;}
+}
+function sse(id){const es=new EventSource('/api/v1/jobs/'+id+'/events'); es.addEventListener('status',e=>{const j=JSON.parse(e.data);render(j);if(['COMPLETED','FAILED'].includes(j.status))es.close();});}
+function ws(id){const proto=location.protocol==='https:'?'wss':'ws';const sock=new WebSocket(`${proto}://${location.host}/api/v1/jobs/ws/${id}`);sock.onmessage=e=>{const j=JSON.parse(e.data);render(j);if(['COMPLETED','FAILED'].includes(j.status))sock.close();};}
+async function runAsync(){const started=performance.now();const message=document.getElementById('message').value;const r=await fetch('/api/v1/chat/async',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message})});const j=await r.json();j.browser_roundtrip_ms=performance.now()-started;log(j);}
+</script>
+</body>
+</html>
