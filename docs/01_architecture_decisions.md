@@ -1,67 +1,67 @@
-# 01. Architecture Decision Record
+# 설계 결정 기록
 
-## ADR-001: Monolith First
+## 1. 처음부터 마이크로서비스로 나누지 않음
 
-### 후보
-- 처음부터 MSA
-- Modular Monolith
-- 단일 파일 Monolith
-
-### 선택
-**Modular Monolith**로 시작한다.
-
-### 이유
-서비스를 분리하면 네트워크 실패, 배포, service discovery, distributed tracing 등 새로운 문제가 추가된다. 이 프로젝트의 첫 목표는 LLM I/O와 동시성 병목을 측정하는 것이므로 먼저 한 프로세스 안에서 API, service, storage, infrastructure 책임만 분리한다.
-
-### MSA 전환 조건
-- 특정 workload만 독립적으로 scale-out해야 할 필요가 측정됨
-- ingestion/평가 작업이 chat latency에 영향을 줌
-- 장애 격리가 실제 요구사항이 됨
-
----
-
-## ADR-002: Async for LLM I/O
-
-### 후보
-1. blocking synchronous call
-2. thread pool
-3. async/await
+### 검토한 대안
+- 처음부터 마이크로서비스로 분리
+- 하나의 서비스 안에서 기능별 모듈 분리
+- 모든 코드를 한 파일에 구성
 
 ### 선택
-일반 chat path는 **async/await**.
+**하나의 서비스 안에서 기능별 모듈을 분리하는 구조**로 시작했습니다.
 
 ### 이유
-LLM 호출은 CPU 계산보다 원격 서버 응답 대기가 큰 I/O-bound workload다. await 동안 event loop는 다른 request를 진행할 수 있다.
+서비스를 나누면 네트워크 실패, 배포, 서비스 탐색, 분산 추적 같은 운영 문제가 함께 생깁니다. 이 프로젝트의 첫 목표는 LLM I/O 대기와 동시 요청 문제를 확인하는 것이므로, 먼저 한 프로세스 안에서 API·서비스·저장소·인프라 책임을 분리했습니다.
 
-### 주의
-async는 한 사용자의 모델 생성 자체를 빠르게 만드는 기술이 아니다. 주요 개선 목표는 동시 요청 상황의 자원 활용과 throughput이다.
+### 서비스 분리를 다시 검토할 조건
+- 특정 작업만 독립적으로 수평 확장해야 할 필요가 실제로 확인될 때
+- 분석·평가 작업이 대화 API의 지연시간에 영향을 줄 때
+- 장애 격리가 실제 요구사항이 될 때
 
 ---
 
-## ADR-003: Semaphore before Queue
+## 2. LLM 호출은 비동기 I/O로 처리
 
-### 후보
-- unlimited concurrency
-- semaphore
-- explicit queue + worker
+### 검토한 대안
+1. 동기식 호출
+2. 스레드 풀
+3. `async/await`
 
 ### 선택
-짧은 chat 요청은 **Semaphore**, 긴 작업은 **Queue + Worker**.
+일반 대화 경로는 **비동기 I/O**로 처리합니다.
 
 ### 이유
-Semaphore는 최소한의 복잡도로 downstream 동시 호출 수를 제한한다. Queue는 status/priority/retry/queue wait이 필요한 작업에 사용한다.
+LLM 호출은 CPU 계산보다 외부 서버의 응답을 기다리는 시간이 긴 작업입니다. `await`으로 대기하는 동안 이벤트 루프가 다른 요청을 처리할 수 있습니다.
+
+### 주의점
+비동기 처리가 한 번의 LLM 생성 시간을 줄여주는 것은 아닙니다. 목표는 동시 요청 상황에서 서버 자원을 효율적으로 사용하고 처리량을 높이는 것입니다.
 
 ---
 
-## ADR-004: Polling as Baseline, SSE as Primary Streaming Candidate
+## 3. 짧은 요청은 세마포어, 긴 작업은 대기열
 
-Polling은 가장 단순한 비교 기준이다. LLM 결과는 주로 Server → Client 방향이므로 양방향 WebSocket보다 SSE가 더 작은 복잡도로 충분할 수 있다. WebSocket은 취소·양방향 이벤트가 필요한 경우 비교한다.
+### 검토한 대안
+- 동시 호출 제한 없음
+- 세마포어
+- 명시적인 대기열 + 작업 처리자
+
+### 선택
+짧은 대화 요청은 **세마포어**, 긴 작업은 **대기열 + 작업 처리자**를 사용합니다.
+
+### 이유
+세마포어는 작은 복잡도로 외부 LLM 동시 호출 수만 제한할 수 있습니다. 대기열은 작업 상태, 우선순위, 재시도, 대기시간까지 관리해야 할 때 사용합니다.
 
 ---
 
-## ADR-005: Kafka is Event Flow, Redis Lock is Coordination
+## 4. 상태 전달은 폴링을 기준으로 비교하고 SSE를 우선 검토
 
-- Redis Distributed Lock: 여러 인스턴스 중 **누가 공유 자원을 수정할 수 있는지** 조정
-- Kafka: **이벤트를 저장·전달하고 consumer가 비동기로 처리**
+폴링은 가장 단순한 기준 방식입니다. LLM 토큰과 작업 상태는 대부분 서버에서 클라이언트로 전달하는 단방향 흐름이므로 SSE가 WebSocket보다 단순할 수 있습니다. 취소나 양방향 실시간 이벤트가 필요한 경우 WebSocket을 검토합니다.
 
-둘을 대체재로 취급하지 않는다.
+---
+
+## 5. Redis와 Kafka의 역할을 구분
+
+- **Redis 분산 락**: 여러 서버 중 어떤 서버가 공유 자원을 수정할 수 있는지 조정
+- **Kafka**: 이벤트를 저장·전달하고 여러 소비자가 독립적으로 처리할 수 있게 분리
+
+둘은 대체 관계가 아닙니다. Redis는 공유 상태와 분산 조정, Kafka는 이벤트 전달과 재처리에 사용합니다.
