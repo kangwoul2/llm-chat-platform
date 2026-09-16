@@ -1,23 +1,28 @@
-# 11. Optional RAG Extension
+# RAG 확장 방향
 
-이 프로젝트의 중심은 백엔드 성능/신뢰성이며 RAG는 **복합 downstream workload**로 확장할 수 있다.
+이 프로젝트의 중심은 백엔드 안정성과 성능 검증이며, RAG는 **외부 호출이 여러 단계로 이어지는 작업**으로 확장할 수 있습니다.
 
-## 권장 구조
+## 권장 흐름
+
 ```text
-Question
-→ Domain Router
-→ Embedding API
-→ Vector Search
-→ No-context Guard
-→ LLM Generation
+질문
+→ 요청 분류
+→ 임베딩 API
+→ 벡터 검색
+→ 근거 부족 확인
+→ LLM 응답 생성
 ```
 
 ## 백엔드 실험과 연결
-- Embedding + LLM 두 개의 외부 I/O가 async path에 미치는 영향
-- vector search 시간을 별도 span으로 측정
-- RAG 없는 chat vs RAG chat p95 비교
-- ingestion을 synchronous API에서 job queue로 분리
-- 동일 문서 재업로드에 document hash idempotency 적용
+
+- 임베딩 API와 LLM API 두 개의 외부 I/O가 비동기 처리에 미치는 영향
+- 벡터 검색 시간을 별도로 측정
+- 일반 대화와 RAG 대화의 p95 지연시간 비교
+- 문서 등록 작업을 동기 API에서 대기열 기반 비동기 작업으로 분리
+- 같은 문서 재등록 시 문서 해시를 이용한 멱등성 적용
 
 ## 품질 평가
-성능만 높이고 답변 품질이 떨어지면 성공한 최적화가 아니다. RAG 확장 시 latency/RPS와 별도로 faithfulness, context precision/recall 같은 품질 지표를 함께 기록한다.
+
+응답시간이나 처리량만 좋아지고 답변 품질이 떨어지면 좋은 개선이라고 보기 어렵습니다. RAG를 확장할 경우 성능 지표와 별도로 **근거 일치도, 검색 정확도, 검색 재현율** 같은 품질 지표를 함께 기록합니다.
+
+면접에서는 **“RAG도 결국 검색과 생성이라는 여러 단계의 외부 I/O를 포함하므로 성능과 답변 품질을 분리해서 봐야 한다”**고 설명합니다.
