@@ -1,31 +1,39 @@
-# 05. Connection Pool
+# HTTP 연결 풀
 
-## Connection
-Client와 server 사이에서 TCP 상태를 유지하는 통신 관계다. HTTPS라면 TCP 연결 외 TLS handshake 비용도 고려해야 한다.
+## 연결이란 무엇인가
 
-## Connection reuse
-매 요청마다 연결을 새로 만드는 대신 기존 keep-alive connection을 재사용한다.
+클라이언트와 서버 사이에서 TCP 상태를 유지하는 통신 관계입니다. HTTPS에서는 TCP 연결뿐 아니라 TLS 연결 설정 비용도 함께 발생합니다.
 
-## Pool
-여러 reusable connection을 관리하는 집합.
+## 연결 재사용
 
-이 프로젝트는 application lifespan 동안 하나의 `httpx.AsyncClient`를 유지한다.
+매 요청마다 연결을 새로 만드는 대신 기존 Keep-Alive 연결을 재사용합니다.
+
+## 연결 풀
+
+재사용 가능한 여러 연결을 관리하는 집합입니다.
+
+이 프로젝트는 애플리케이션이 실행되는 동안 하나의 `httpx.AsyncClient`를 유지합니다.
 
 ```text
-Request A ─┐
-Request B ─┼→ AsyncClient Connection Pool → LLM API
-Request C ─┘
+요청 A ─┐
+요청 B ─┼→ AsyncClient 연결 풀 → LLM API
+요청 C ─┘
 ```
 
-## 너무 큰 Pool의 문제
-Pool이 downstream capacity보다 크면 429, timeout, socket 증가를 유발한다. Pool size와 application semaphore는 별개이며 함께 조정해야 한다.
+## 연결 풀을 너무 크게 잡으면 안 되는 이유
+
+연결 수가 외부 서비스가 감당할 수 있는 수준보다 커지면 429, 제한시간 초과, 소켓 증가가 발생할 수 있습니다. 연결 풀 크기와 세마포어의 동시 호출 제한은 서로 다른 설정이지만 함께 조정해야 합니다.
 
 ## 실험
-- client per request
-- shared client + keep-alive pool
+
+비교:
+- 요청마다 새 클라이언트 생성
+- 공유 클라이언트와 Keep-Alive 연결 재사용
 
 측정:
-- connection count
-- TLS/TCP handshake 횟수(가능한 경우 packet/tool 관찰)
-- p95 latency
-- RPS
+- 연결 수
+- TCP/TLS 연결 설정 횟수
+- p95 지연시간
+- 처리량(RPS)
+
+면접에서는 **“연결 풀은 연결 생성 비용을 줄이지만, 너무 크게 잡으면 외부 서비스에 과도한 연결을 만든다”**고 설명합니다.
