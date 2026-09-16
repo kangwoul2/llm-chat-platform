@@ -1,7 +1,8 @@
-# 06. Persistence, Transaction, Idempotency
+# 영속성, 트랜잭션, 멱등성
 
 ## 대화 영구 저장
-브라우저 DOM만 사용하면 새로고침 시 대화가 사라진다. 실제 서비스에서는 PostgreSQL을 source of truth로 사용한다.
+
+브라우저 메모리만 사용하면 새로고침이나 재시작 시 대화가 사라집니다. 실제 서비스에서는 PostgreSQL을 **기준 저장소**로 사용합니다.
 
 ```text
 Conversation
@@ -18,29 +19,34 @@ Message
 - created_at
 ```
 
-Redis는 job status, session, rate-limit처럼 빠르고 일시적인 shared state에 사용한다.
+Redis는 작업 상태, 세션, 요청 제한처럼 빠르게 접근해야 하는 일시적 공유 상태에 사용합니다.
 
-## 외부 API를 DB Transaction 안에 오래 넣지 않는다
+## 외부 API 호출을 DB 트랜잭션 안에서 오래 기다리지 않음
 
-나쁜 예:
+좋지 않은 방식:
+
 ```text
 BEGIN
-message insert
-10초 LLM call
-assistant insert
+사용자 메시지 저장
+10초 LLM 호출 대기
+응답 저장
 COMMIT
 ```
 
-DB connection/lock을 장시간 점유할 수 있다.
+이 방식은 DB 연결과 락을 오랫동안 점유할 수 있습니다.
 
-더 나은 흐름:
+선택한 방향:
+
 ```text
-짧은 transaction: user message + pending record
-→ LLM call
-→ 짧은 transaction: answer + completed
+짧은 트랜잭션: 사용자 메시지 + 처리 중 상태 저장
+→ LLM 호출
+→ 짧은 트랜잭션: 응답 + 완료 상태 저장
 ```
 
-## Idempotency
-같은 요청이 retry되어도 최종 상태가 한 번 처리한 것과 같게 만든다.
+## 멱등성
 
-MVP는 in-memory store를 제공하지만 multi-instance에서는 Redis/PostgreSQL unique constraint로 이전해야 한다.
+같은 요청이 재시도되어도 최종 결과가 한 번 처리한 것과 같도록 만드는 성질입니다.
+
+현재 실험용 구현은 메모리에 멱등성 키를 저장합니다. 여러 서버로 확장할 경우 Redis 또는 PostgreSQL 유일성 제약조건을 이용해 서버 간에도 같은 기준을 공유해야 합니다.
+
+면접에서는 **“외부 I/O는 트랜잭션 밖으로 빼서 DB 자원 점유를 줄이고, 재시도 중복은 멱등성으로 별도로 제어했다”**고 설명합니다.
