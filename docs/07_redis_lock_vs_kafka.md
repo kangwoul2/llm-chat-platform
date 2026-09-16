@@ -1,44 +1,47 @@
-# 07. Redis Distributed Lock vs Kafka
+# Redis 분산 락과 Kafka의 역할 구분
 
-## Redis Distributed Lock
-여러 서버가 동일한 외부/공유 작업을 동시에 수행하지 못하도록 coordination한다.
+## Redis 분산 락
 
-예:
+여러 서버가 같은 공유 작업을 동시에 수행하지 않도록 조정할 때 사용합니다.
+
 ```text
-Server A ─┐
-Server B ─┼→ lock:document:hash
-Server C ─┘
+서버 A ─┐
+서버 B ─┼→ lock:document:hash
+서버 C ─┘
 ```
 
-주의:
-- TTL
-- owner token
-- safe release
-- lease expiry 중 작업 지속 문제
-- 필요 시 fencing token
+주의할 점:
+- 만료시간
+- 락 소유자 식별값
+- 안전한 락 해제
+- 락 만료 후에도 작업이 계속되는 상황
+- 필요 시 펜싱 토큰
 
-분산락이 정합성의 만능 해결책은 아니다. DB unique constraint/idempotency로 해결 가능하면 그 방법이 더 단순할 수 있다.
+분산 락이 정합성 문제의 만능 해결책은 아닙니다. DB 유일성 제약조건이나 멱등성으로 해결할 수 있다면 그 방법이 더 단순할 수 있습니다.
 
 ## Kafka
-Kafka는 lock이 아니라 durable event stream이다.
 
-예:
+Kafka는 락이 아니라 **지속적으로 보관되는 이벤트 흐름**입니다.
+
 ```text
-CHAT_COMPLETED
-  → analytics consumer
-  → evaluation consumer
-  → audit consumer
+대화 완료 이벤트
+  → 분석 소비자
+  → 평가 소비자
+  → 감사 로그 소비자
 ```
 
-Kafka partition key를 conversation_id 등으로 잡아 동일 key 이벤트 순서를 유지할 수 있지만 이것이 distributed lock을 의미하지는 않는다.
+대화 ID 등을 파티션 키로 사용하면 같은 키의 이벤트 순서를 유지할 수 있지만, 이것이 분산 락 역할을 하는 것은 아닙니다.
 
-## 언제 도입할까
-Redis:
-- 여러 FastAPI 인스턴스가 공유하는 job status
-- rate limit
-- short-lived coordination
+## 언제 사용하는가
 
-Kafka:
-- 하나의 이벤트를 여러 independent consumer가 소비
-- event replay가 필요
-- producer와 consumer 처리 속도를 분리
+### Redis
+- 여러 FastAPI 서버가 작업 상태를 공유할 때
+- 요청 제한 상태를 공유할 때
+- 짧은 분산 조정이 필요할 때
+
+### Kafka
+- 하나의 이벤트를 여러 소비자가 독립적으로 처리할 때
+- 이벤트를 다시 읽어야 할 때
+- 생산자와 소비자의 처리 속도를 분리할 때
+
+면접에서는 **“Redis는 공유 상태와 분산 조정, Kafka는 이벤트 저장·전달과 소비자 분리”**라고 구분합니다.
