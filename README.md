@@ -273,6 +273,8 @@ Kafka
 
 ## 13. 테스트
 
+환경변수 설정부터 실제 서버 실행, 기능별 검증까지는 [로컬 실행과 검증 안내](docs/14_local_verification.md)를 따릅니다.
+
 ```text
 test_smoke.py
 → 비동기 LLM 호출

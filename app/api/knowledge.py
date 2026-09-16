@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 import uuid
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.core.observability import RAG_GROUNDED
@@ -37,7 +37,10 @@ async def upsert_document(payload: KnowledgeUpsertRequest, request: Request):
 @router.post("/query")
 async def grounded_query(payload: KnowledgeQueryRequest, request: Request):
     started = time.perf_counter()
-    result = await request.app.state.grounded_chat.answer(payload.question)
+    try:
+        result = await request.app.state.grounded_chat.answer(payload.question)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="downstream llm error") from exc
     RAG_GROUNDED.labels(str(result.grounded).lower()).inc()
     return {
         "request_id": getattr(request.state, "request_id", str(uuid.uuid4())),

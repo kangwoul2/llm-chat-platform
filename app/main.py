@@ -49,7 +49,9 @@ async def lifespan(app: FastAPI):
         limiter=limiter,
     )
     knowledge_store = KnowledgeStore.from_directory(settings.rag_knowledge_dir)
-    grounded_chat = GroundedChatService(knowledge_store, llm, min_score=settings.rag_min_score)
+    grounded_chat = GroundedChatService(
+        knowledge_store, llm, min_score=settings.rag_min_score, limiter=limiter,
+    )
 
     app.state.settings = settings
     app.state.http_client = http_client
