@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="850" viewBox="0 0 1100 850" role="img" aria-labelledby="title description">
+  <title id="title">채팅, RAG, 작업 처리의 공용 세마포어 요청 흐름</title>
+  <desc id="description">사용자 요청을 FastAPI가 접수한다. 일반 채팅은 공용 세마포어로, RAG는 검색 근거 확인 후 공용 세마포어로, 작업 등록은 대기열과 처리자를 거쳐 공용 세마포어로 이동한다. 근거가 부족하면 LLM 호출 없이 응답한다. 공용 세마포어 이후 LLM 클라이언트가 mock 또는 외부 LLM을 호출한다.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 0 0 L 9 5 L 0 10 Z" fill="#52647a"/>
+    </marker>
+    <style>
+      text { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; text-anchor: middle; fill: #182b43; font-size: 20px; }
+      .small { font-size: 15px; fill: #465a72; }
+      .node { fill: #ffffff; stroke: #bac9db; stroke-width: 2; }
+      .route { fill: #eaf2ff; stroke: #6694ce; stroke-width: 2; }
+      .edge { fill: none; stroke: #52647a; stroke-width: 2; marker-end: url(#arrow); stroke-linejoin: round; }
+      .label { font-size: 16px; font-weight: 700; }
+    </style>
+  </defs>
+  <rect width="1100" height="850" rx="20" fill="#f6f8fc"/>
+  <text x="550" y="36" font-size="24" font-weight="700">요청 경로와 공용 동시 호출 제한</text>
+
+  <path class="edge" d="M550 111 V140"/>
+  <path class="edge" d="M550 200 V218 H180 V245"/>
+  <path class="edge" d="M550 200 V245"/>
+  <path class="edge" d="M550 200 V218 H920 V245"/>
+  <path class="edge" d="M180 305 V325 H70 V600 H400"/>
+  <path class="edge" d="M550 305 V330"/>
+  <path class="edge" d="M420 395 H260 V440"/>
+  <path class="edge" d="M550 460 V565"/>
+  <path class="edge" d="M920 305 V345"/>
+  <path class="edge" d="M920 405 V445"/>
+  <path class="edge" d="M920 505 V600 H700"/>
+  <path class="edge" d="M550 635 V675"/>
+  <path class="edge" d="M550 735 V770"/>
+
+  <rect class="node" x="400" y="55" width="300" height="56" rx="12"/>
+  <text x="550" y="90">사용자 / 대시보드</text>
+  <rect class="route" x="400" y="140" width="300" height="60" rx="12"/>
+  <text x="550" y="178">FastAPI: 요청 접수</text>
+
+  <rect class="route" x="80" y="245" width="200" height="60" rx="12"/>
+  <text x="180" y="283">일반 채팅</text>
+  <rect class="route" x="425" y="245" width="250" height="60" rx="12"/>
+  <text x="550" y="283">RAG: 문서 검색</text>
+  <rect class="route" x="820" y="245" width="200" height="60" rx="12"/>
+  <text x="920" y="283">작업 등록</text>
+
+  <path d="M550 330 L680 395 L550 460 L420 395 Z" fill="#fff4d8" stroke="#cda54a" stroke-width="2"/>
+  <text x="550" y="390">검색 근거가</text>
+  <text x="550" y="416">충분한가?</text>
+  <text class="label" x="335" y="384">아니오</text>
+  <text class="label" x="574" y="512">예</text>
+  <rect x="135" y="440" width="250" height="75" rx="12" fill="#fff0ec" stroke="#d89a88" stroke-width="2"/>
+  <text x="260" y="471">근거 부족 응답</text>
+  <text class="small" x="260" y="496">LLM 호출 없이 종료</text>
+
+  <rect class="node" x="820" y="345" width="200" height="60" rx="12"/>
+  <text x="920" y="383">대기열</text>
+  <rect class="node" x="820" y="445" width="200" height="60" rx="12"/>
+  <text x="920" y="483">작업 처리자</text>
+
+  <rect x="400" y="565" width="300" height="70" rx="12" fill="#dff3ea" stroke="#328368" stroke-width="2.5"/>
+  <text x="550" y="595" font-weight="700">공용 세마포어</text>
+  <text class="small" x="550" y="619">세 경로가 같은 제한기를 사용</text>
+  <rect class="node" x="400" y="675" width="300" height="60" rx="12"/>
+  <text x="550" y="713">LLM 클라이언트</text>
+  <rect class="route" x="400" y="770" width="300" height="56" rx="12"/>
+  <text x="550" y="805">mock 또는 외부 LLM</text>
+</svg>
