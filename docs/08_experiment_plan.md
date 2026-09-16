@@ -1,56 +1,65 @@
-# 08. Experiment Plan
+# 실험 계획
 
 ## 원칙
-성능 숫자는 실제 측정 전에는 포트폴리오 결과로 사용하지 않는다. 저장소의 `sample_*` 데이터는 시각화와 보고서 형식 검증용 synthetic data다.
 
-## 환경 기록 템플릿
-- Date:
-- OS:
-- CPU:
-- RAM:
-- Python:
-- Uvicorn workers:
-- LLM provider:
-- mock delay / actual model:
-- network:
-- warm-up requests:
-- test duration:
+성능 수치는 실제 측정 전에는 포트폴리오 결과로 사용하지 않습니다. 저장소의 `sample_*` 데이터는 그래프와 보고서 형식을 확인하기 위한 **예시 데이터**입니다.
 
-## E1. Sync vs Async
-Users: 1, 10, 50, 100, 200
+## 환경 기록 항목
 
-수집:
-- RPS
-- p50/p95/p99
-- error rate
+- 날짜
+- 운영체제
+- CPU
+- 메모리
+- Python 버전
+- Uvicorn 작업자 수
+- LLM 제공자
+- 모의 응답 지연시간 또는 실제 모델
+- 네트워크 환경
+- 준비 요청 수
+- 실험 시간
 
-## E2. Semaphore tuning
-Concurrency: 1, 5, 10, 20, 50
+## 실험 1. 동기 방식과 비동기 방식
 
-수집:
-- throughput
-- p95
-- downstream error
-- queue/wait time
+동시 사용자 수: 1, 10, 50, 100, 200
 
-## E3. Connection Pool
-- new client per request
-- shared pool 10/20/50
+측정:
+- 처리량(RPS)
+- p50 / p95 / p99 지연시간
+- 오류율
 
-## E4. Job Queue
-- workers 1/2/4/8
-- queue max 20/100/500
+## 실험 2. 세마포어 크기 조정
 
-## E5. Delivery
-동일한 5초 job에 대해:
-- polling 100ms/500ms/1000ms
+동시 LLM 호출 수: 1, 5, 10, 20, 50
+
+측정:
+- 처리량
+- p95 지연시간
+- 외부 LLM 오류율
+- 대기시간
+
+## 실험 3. HTTP 연결 풀
+
+비교:
+- 요청마다 새 클라이언트 생성
+- 공유 연결 풀 10 / 20 / 50
+
+## 실험 4. 작업 대기열
+
+- 작업 처리자 수: 1 / 2 / 4 / 8
+- 최대 대기 작업 수: 20 / 100 / 500
+
+## 실험 5. 결과 전달 방식
+
+동일한 5초 작업에 대해 비교:
+- 폴링 100ms / 500ms / 1000ms
 - SSE
 - WebSocket
 
-수집:
-- request count
-- bytes
-- notification delay
+측정:
+- HTTP 요청 수
+- 전송 데이터 크기
+- 결과 전달 지연시간
 
-## 재현 가능성
-각 실험 최소 3회 반복하고 median과 spread를 기록한다. 서로 다른 개선을 동시에 적용하지 않고 한 변수씩 바꾼다.
+## 재현성
+
+각 실험은 최소 3회 반복하고 중앙값과 결과의 변동 폭을 기록합니다. 여러 개선을 동시에 적용하지 않고 **한 번에 하나의 변수만 변경**합니다.
