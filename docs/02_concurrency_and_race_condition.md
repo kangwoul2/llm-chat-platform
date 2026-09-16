@@ -1,54 +1,59 @@
-# 02. Race Condition & Concurrency
+# 동시성과 경쟁 상태
 
-## Race Condition
+## 경쟁 상태
 
-여러 실행 주체가 같은 상태를 동시에 읽고 수정해 **실행 순서에 따라 최종 결과가 달라지는 문제**다.
+여러 실행 주체가 같은 값을 동시에 읽고 수정해 **실행 순서에 따라 최종 결과가 달라지는 문제**입니다.
 
 ```text
 count = 10
 
-Thread A: READ 10
-Thread B: READ 10
-Thread A: WRITE 11
-Thread B: WRITE 11
+작업 A: 10 읽기
+작업 B: 10 읽기
+작업 A: 11 저장
+작업 B: 11 저장
 
-Expected = 12
-Actual   = 11
+기대값 = 12
+실제값 = 11
 ```
 
-이를 Lost Update라고 한다.
+이처럼 한쪽의 변경이 사라지는 문제를 **갱신 손실**이라고 합니다.
 
-## 보호 범위에 따른 해결책
+## 보호 범위에 따른 해결 방법
 
 ```text
-CPU instruction
-  → Atomic / CAS
+CPU 명령 수준
+  → 원자 연산 / CAS
 
-Thread / Process memory
-  → Mutex / Lock / Atomic variable
+하나의 프로세스 내부
+  → 뮤텍스 / 락 / 원자 변수
 
-Database row
-  → Atomic SQL / Transaction / Optimistic or Pessimistic Lock
+DB 행
+  → 원자적 SQL / 트랜잭션 / 낙관적 락 / 비관적 락
 
-Multiple application instances
-  → DB constraint / Idempotency / Redis Distributed Lock
+여러 애플리케이션 서버
+  → DB 제약조건 / 멱등성 / Redis 분산 락
 
-Event-driven processing
-  → Partition key / Idempotent consumer / Unique constraint
+이벤트 처리
+  → 파티션 키 / 멱등 소비자 / 유일성 제약조건
 ```
 
-## Mutex
-한 번에 하나의 실행 흐름만 critical section에 들어가게 한다. 공유 상태 정합성에 적합하지만 범위를 너무 크게 잡으면 병렬성이 사라진다.
+## 뮤텍스
 
-## Semaphore
-동시에 N개까지만 접근하도록 한다. LLM 호출 같은 제한된 downstream resource 보호에 적합하다.
+한 번에 하나의 실행 흐름만 임계 구역에 들어가게 합니다. 공유 상태의 정합성을 지킬 수 있지만 범위를 너무 크게 잡으면 병렬 처리 이점이 줄어듭니다.
 
-## Lock을 먼저 선택하지 않는 이유
-Lock은 correctness를 높일 수 있지만 wait, deadlock, throughput 저하를 만든다. 가능한 경우 다음을 먼저 검토한다.
+## 세마포어
 
-1. atomic operation
-2. unique constraint
-3. idempotency
-4. optimistic concurrency
-5. pessimistic lock
-6. distributed lock
+동시에 N개까지만 접근하도록 제한합니다. LLM 호출처럼 외부 자원의 동시 사용량을 제한할 때 적합합니다.
+
+## 락부터 선택하지 않는 이유
+
+락은 정합성을 높일 수 있지만 대기시간, 교착상태, 처리량 저하를 만들 수 있습니다. 가능한 경우 다음 순서로 더 작은 해결책을 먼저 검토합니다.
+
+1. 원자 연산
+2. 유일성 제약조건
+3. 멱등성
+4. 낙관적 락
+5. 비관적 락
+6. 분산 락
+
+면접에서는 **“동시성 문제라고 무조건 락을 쓰지 않고, 보호 범위와 충돌 빈도에 맞는 가장 작은 수단을 선택한다”**고 설명합니다.
