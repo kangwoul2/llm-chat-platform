@@ -1,9 +1,9 @@
-# Service Guide
+# 서비스 안내
 
-The chat platform separates synchronous request-response chat from long-running job processing.
-Short LLM requests are protected by a semaphore so downstream concurrency remains bounded.
-Long-running work is accepted as a job, placed in a bounded queue, and processed by workers.
+이 채팅 서비스는 짧은 요청-응답 방식의 대화와 긴 비동기 작업을 분리합니다.
 
-The service exposes polling, Server-Sent Events, and WebSocket endpoints so their delivery cost can be compared under the same workload.
+짧은 LLM 요청은 세마포어로 보호해 외부 LLM에 동시에 보내는 호출 수를 제한합니다. 긴 작업은 요청 ID를 발급한 뒤 크기가 제한된 대기열에 넣고 작업 처리자가 순서대로 처리합니다.
 
-Grounded knowledge queries retrieve local documents first. If retrieval confidence is below the configured threshold, the system returns a no-context response instead of asking the language model to invent an answer.
+작업 결과는 폴링, SSE, WebSocket 방식으로 전달할 수 있으며 같은 조건에서 요청 수와 결과 전달 지연시간을 비교할 수 있습니다.
+
+문서 기반 질의는 먼저 관련 문서를 검색합니다. 검색 점수가 기준보다 낮으면 LLM이 근거 없는 답변을 만들도록 호출하지 않고, 근거가 부족하다는 응답을 반환합니다.
