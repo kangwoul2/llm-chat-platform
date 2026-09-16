@@ -1,40 +1,60 @@
-# 04. Queue, Polling, SSE, WebSocket
+# 대기열과 결과 전달 방식
 
-## Queue를 사용하는 이유
-처리 capacity보다 빠르게 요청이 들어오면 즉시 모두 downstream에 보내는 대신 queue에 보관하고 worker가 제한된 속도로 처리한다.
+## 대기열을 사용하는 이유
+
+서버가 처리할 수 있는 속도보다 빠르게 요청이 들어오면 모든 요청을 즉시 외부 LLM에 보내는 대신 대기열에 보관하고 작업 처리자가 제한된 속도로 처리합니다.
 
 ```text
-Incoming 100 req/s
-Processor capacity 20 req/s
-→ 초당 80개 backlog 발생
+초당 요청 100건
+처리 가능량 20건
+→ 초당 80건의 대기 작업이 추가됨
 ```
 
-무한 queue는 해결이 아니다. max queue size와 admission control이 필요하다.
+대기열을 무한히 늘리는 것은 해결책이 아닙니다. 최대 크기를 정하고, 가득 찼을 때는 추가 요청을 거절하는 정책이 필요합니다.
 
-## Request ID
-긴 작업을 `202 Accepted + job_id`로 분리하면 client connection을 작업 완료까지 붙잡을 필요가 없다.
+## 요청 ID
 
-## Polling
-Client가 주기적으로 `GET /jobs/{id}` 호출.
+긴 작업을 `202 Accepted + job_id` 형태로 분리하면 클라이언트가 작업 완료까지 HTTP 연결을 계속 유지할 필요가 없습니다.
 
-장점: 단순, REST만으로 구현.
-단점: 불필요한 request, polling interval만큼 notification delay.
+## 폴링
+
+클라이언트가 일정 간격으로 `GET /jobs/{id}`를 호출합니다.
+
+장점:
+- 구현이 단순함
+- REST API만으로 구현 가능
+
+단점:
+- 불필요한 반복 요청 발생
+- 조회 주기만큼 결과 확인이 늦어질 수 있음
 
 ## SSE
-Server → Client 단방향 persistent stream.
 
-장점: LLM token/status streaming에 적합, HTTP 기반.
-단점: 양방향 상호작용에는 제한.
+서버에서 클라이언트로 하나의 연결을 유지하며 단방향으로 데이터를 보냅니다.
+
+장점:
+- LLM 토큰이나 작업 상태 전달에 적합
+- HTTP 기반이라 비교적 단순함
+
+단점:
+- 양방향 실시간 상호작용에는 제한이 있음
 
 ## WebSocket
-Persistent bidirectional channel.
 
-장점: client cancel, interactive event 등 양방향에 강함.
-단점: 연결 상태/재연결/scale-out 운영이 더 복잡.
+하나의 연결에서 서버와 클라이언트가 양방향으로 데이터를 주고받습니다.
+
+장점:
+- 사용자 취소, 실시간 양방향 이벤트에 적합
+
+단점:
+- 연결 상태, 재연결, 여러 서버로 확장할 때의 연결 관리가 복잡함
 
 ## 비교 지표
-- job당 HTTP request 수
-- transferred bytes
-- active connection 수
-- completion → client receive notification latency
-- server CPU/memory
+
+- 작업 하나당 HTTP 요청 수
+- 전송 데이터 크기
+- 동시에 유지되는 연결 수
+- 작업 완료 후 클라이언트가 결과를 확인하기까지의 지연시간
+- 서버 CPU / 메모리 사용량
+
+면접에서는 **“단방향이면 SSE를 먼저 검토하고, 양방향 요구가 있을 때 WebSocket의 복잡성을 감수한다”**고 설명합니다.
