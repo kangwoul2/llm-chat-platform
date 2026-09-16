@@ -1,11 +1,13 @@
-# 12. Known Limitations
+# 현재 한계
 
-이 저장소는 포트폴리오 실험을 시작하기 위한 MVP다. 다음 사항은 의도적으로 다음 iteration으로 남겨두었다.
+이 저장소는 포트폴리오 실험을 위한 초기 구현입니다. 다음 항목은 의도적으로 다음 개선 단계로 남겨두었습니다.
 
-1. **In-memory Job Store**: process restart 시 유실된다. multi-instance에서는 Redis/PostgreSQL로 이동한다.
-2. **In-memory Idempotency**: 단일 프로세스 범위이며 `get → process → put` 사이의 동일-key 동시 요청 coalescing은 아직 구현하지 않았다. 이 자체를 race-condition 개선 실험으로 사용한다.
-3. **SSE/WebSocket status loop**: 현재 100ms internal polling으로 store를 관찰한다. Redis Pub/Sub 또는 per-job event로 개선 가능하다.
-4. **Sync baseline**: FastAPI의 sync endpoint는 thread pool에서 실행된다. 실험 결과는 worker/thread configuration을 함께 기록해야 한다.
-5. **PostgreSQL**: schema scaffold만 있으며 repository/API 연동은 다음 단계다.
-6. **Redis/Kafka**: adapter만 있으며 기본 path에서 사용하지 않는다. 실제 문제를 재현한 뒤 활성화한다.
-7. **Synthetic report**: `sample_*` 결과는 실제 측정값이 아니다.
+1. **메모리 기반 작업 저장소**: 프로세스가 재시작되면 상태가 사라집니다. 여러 서버로 확장할 경우 Redis 또는 PostgreSQL로 옮겨야 합니다.
+2. **메모리 기반 멱등성 처리**: 단일 프로세스 범위이며 `조회 → 처리 → 저장` 사이에 동시에 들어온 같은 키의 요청을 하나로 합치는 기능은 아직 없습니다. 이 부분은 경쟁 상태 재현과 개선 실험 대상으로 둡니다.
+3. **SSE/WebSocket 상태 전달**: 현재 내부적으로 100ms 간격의 단순 조회가 포함되어 있습니다. Redis Pub/Sub 또는 작업별 이벤트 방식으로 개선할 수 있습니다.
+4. **동기 방식 기준 경로**: FastAPI의 동기식 경로는 스레드 풀에서 실행될 수 있으므로 실험 결과에는 작업자 수와 스레드 설정을 함께 기록해야 합니다.
+5. **PostgreSQL**: 기본 스키마는 준비되어 있지만 모든 API 경로가 DB 영속화와 연결된 것은 아닙니다.
+6. **Redis/Kafka**: 역할 비교를 위한 연동 지점이 있으며 기본 요청 경로에서는 항상 사용하지 않습니다. 실제 요구가 생겼을 때 적용합니다.
+7. **예시 보고서**: `sample_*` 결과는 실제 측정값이 아닙니다.
+
+한계를 숨기지 않고 **다음에 무엇을 검증해야 하는지 정하는 근거**로 사용합니다.
