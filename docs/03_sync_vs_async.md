@@ -1,33 +1,38 @@
-# 03. Sync vs Async Experiment
+# 동기 방식과 비동기 방식 비교 실험
 
 ## 가설
-동일한 1.2초 I/O workload에서 동시 사용자가 증가하면 async 구현이 blocking baseline보다 더 높은 throughput과 낮은 tail latency를 보일 것이다.
+
+같은 1.2초 I/O 대기 작업에서 동시 사용자가 증가하면 비동기 구현이 동기식 대기 방식보다 더 높은 처리량과 낮은 p95/p99 지연시간을 보일 것이라고 가정합니다.
 
 ## 비교 대상
 
-### Sync baseline
+### 동기 방식
+
 ```text
-request
-→ blocking wait
-→ response
+요청
+→ 동기식 대기
+→ 응답
 ```
 
-### Async
+### 비동기 방식
+
 ```text
-request A → await downstream
-request B → 진행 가능
-request C → 진행 가능
+요청 A → 외부 응답 대기
+요청 B → 그동안 처리 가능
+요청 C → 그동안 처리 가능
 ```
 
 ## 측정 지표
-- Throughput (RPS): 초당 완료 요청 수
-- p50 latency: 중앙 사용자 응답 시간
-- p95 latency: 95% 요청이 완료되는 상한
-- p99 latency: tail latency
-- Error rate
-- CPU / Memory
+
+- 처리량(RPS): 초당 완료 요청 수
+- p50 지연시간: 일반적인 요청의 응답시간
+- p95 지연시간: 95% 요청이 이 시간 안에 완료되는 값
+- p99 지연시간: 느린 요청 구간 확인
+- 오류율
+- CPU / 메모리 사용량
 
 ## 해석 시 주의
-실제 FastAPI `def` endpoint는 thread pool에서 실행될 수 있다. 따라서 이 실험은 'Python 전체의 sync vs async 절대 우열'을 증명하는 실험이 아니라 **우리 workload와 worker/config 조건에서의 차이**를 측정하는 실험이다.
 
-실제 포트폴리오 수치는 동일 머신, 동일 provider, 동일 workload, 동일 warm-up 조건에서 재측정해야 한다.
+FastAPI의 동기식 `def` 경로는 스레드 풀에서 실행될 수 있습니다. 따라서 이 실험은 동기 방식과 비동기 방식의 절대적인 우열을 주장하는 것이 아니라 **현재 작업 특성과 서버 설정에서 어떤 차이가 생기는지 확인하는 실험**입니다.
+
+실제 성능 수치는 같은 장비, 같은 LLM 제공자, 같은 부하, 같은 준비 시간에서 다시 측정해야 합니다.
