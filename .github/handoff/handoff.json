@@ -1,0 +1,52 @@
+{
+  "schema": "handoff/v1",
+  "date": "2026-10-21",
+  "repository": "kangwoul2/llm-chat-platform",
+  "base_commit": "c56c358c813a14795619933f967b6c338c7dcbe6",
+  "author": "Claude (Sonnet 5.5), at the owner's request",
+  "visibility": "not part of the portfolio; not linked from README or docs/",
+  "owner_rules": [
+    "Do not modify the semaphore (app/services/concurrency.py LLMConcurrencyLimiter) or app/main.py limiter wiring.",
+    "Only add files under .github/handoff/. Do not change app/, tests/, docs/, README.md.",
+    "Report only measured numbers; never mix with docs/09_sample_report.md sample data.",
+    "Do not describe proposals as implemented features until they are merged and re-measured.",
+    "Never store secrets, course materials, or third-party data dumps here."
+  ],
+  "status": "proposals written and tested locally (24 tests pass); none applied to main",
+  "reading_order": [
+    "01_rag_gap_analysis.md",
+    "02_measured_results.md",
+    "03_proposals_and_acceptance.md",
+    "04_report_material.md"
+  ],
+  "findings": [
+    {"id": "C1", "label": "VERIFIED", "text": "Same idempotency_key sent 20x concurrently -> current get->LLM->put flow calls the LLM 20 times", "evidence": "proposals/tests/test_single_flight.py"},
+    {"id": "R4", "label": "VERIFIED", "text": "rag_min_score=0.55 blocks 4 of 6 unanswerable questions (67%) on the docs/ corpus", "evidence": "proposals/rag_eval/results.md section 2-3"},
+    {"id": "R2", "label": "VERIFIED", "text": "Whole-file retrieval passes 3,266 chars (top-3 mean) to the LLM vs 680 with chunking (-79%)", "evidence": "proposals/rag_eval/results.md section 1"},
+    {"id": "R3", "label": "VERIFIED", "text": "Particle-stripping tokenizer: hit@1 75% -> 88%, MRR 0.830 -> 0.906 (24 questions, single author; overfitting risk INFERRED)", "evidence": "proposals/rag_eval/tokenizer_results.md"},
+    {"id": "P6", "label": "VERIFIED", "text": "Character 2-gram tokenizer made hit@1 worse (75% -> 62%); rejected", "evidence": "proposals/rag_eval/tokenizer_results.md"}
+  ],
+  "proposals": [
+    {"id": "P1", "decision": "ACCEPT", "name": "single-flight for idempotency_key", "files": ["proposals/single_flight.py", "proposals/tests/test_single_flight.py"], "touches_semaphore": false},
+    {"id": "P2", "decision": "ACCEPT", "name": "retrieval evaluation harness + threshold sweep", "files": ["proposals/rag_eval/"]},
+    {"id": "P3", "decision": "MODIFY", "name": "Korean particle-stripping BM25 tokenizer", "files": ["proposals/ko_bm25.py"], "condition": "re-validate on real user questions before merging"},
+    {"id": "P4", "decision": "ACCEPT", "name": "markdown chunking with stable ids and idempotent re-index", "files": ["proposals/doc_chunking.py"]},
+    {"id": "P5", "decision": "ACCEPT", "name": "cited-only sources + numbered-evidence prompt", "files": ["proposals/citations.py"]},
+    {"id": "P6", "decision": "REJECT", "name": "character 2-gram tokenizer", "files": ["proposals/ko_bm25.py#tokenize_ngram"]},
+    {"id": "P7", "decision": "HOLD", "name": "embedding/vector retrieval or hybrid"},
+    {"id": "P8", "decision": "HOLD", "name": "MMR"},
+    {"id": "P9", "decision": "REJECT", "name": "LangGraph in this service"},
+    {"id": "P10", "decision": "HOLD", "name": "persist knowledge store (PostgreSQL)"}
+  ],
+  "apply_order": ["P2", "P1", "P5", "P4", "P3", "recalibrate rag_min_score"],
+  "commands": {
+    "tests": "PYTHONPATH=.:.github/handoff/proposals pytest -q .github/handoff/proposals/tests",
+    "retrieval_eval": "PYTHONPATH=.:.github/handoff/proposals python .github/handoff/proposals/rag_eval/run_eval.py",
+    "tokenizer_experiment": "PYTHONPATH=.:.github/handoff/proposals python .github/handoff/proposals/rag_eval/tokenizer_experiment.py"
+  },
+  "unknowns": [
+    "Behavior of the proposals with a real LLM provider (all tests use stubs).",
+    "Whether the tokenizer gain holds on real user questions.",
+    "Multi-instance deployments: single-flight only merges within one process."
+  ]
+}
